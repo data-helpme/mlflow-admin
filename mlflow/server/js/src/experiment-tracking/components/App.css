@@ -87,6 +87,12 @@ div.github {
   color: #ffffff;
 }
 
+div.github:hover {
+  padding-right: 24px;
+  color: #ffffff;
+  text-decoration: underline;
+}
+
 div.docs {
   color: #ffffff;
 }

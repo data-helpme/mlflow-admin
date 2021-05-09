@@ -25,6 +25,97 @@ REL_STATIC_DIR = "js/build"
 app = Flask(__name__, static_folder=REL_STATIC_DIR)
 STATIC_DIR = os.path.join(app.root_path, REL_STATIC_DIR)
 
+# add login
+app.secret_key = 'super secret string'  # Change this!
+
+import flask_login
+import flask
+login_manager = flask_login.LoginManager()
+login_manager.init_app(app)
+
+# Our mock database.
+users = {'foo@bar.tld': {'password': '123456'}}
+
+class User(flask_login.UserMixin):
+    pass
+
+
+@login_manager.user_loader
+def user_loader(email):
+    if email not in users:
+        return
+
+    user = User()
+    user.id = email
+    return user
+
+
+@login_manager.request_loader
+def request_loader(request):
+    email = request.form.get('email')
+    if email not in users:
+        return
+
+    user = User()
+    user.id = email
+
+    # DO NOT ever store passwords in plaintext and always compare password
+    # hashes using constant-time comparison!
+    user.is_authenticated = request.form['password'] == users[email]['password']
+
+    return user
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if flask.request.method == 'GET':
+        # return '''
+        #        <form action='login' method='POST'>
+        #         <input type='text' name='email' id='email' placeholder='email'/>
+        #         <input type='password' name='password' id='password' placeholder='password'/>
+        #         <input type='submit' name='submit'/>
+        #        </form>
+        #        '''
+        return send_from_directory(STATIC_DIR, "login.html")
+
+    email = flask.request.form['email']
+    if flask.request.form['password'] == users[email]['password']:
+        user = User()
+        user.id = email
+        flask_login.login_user(user)
+        # return flask.redirect(flask.url_for('protected'))
+        return send_from_directory(STATIC_DIR, "index.html")
+
+    return 'Bad login'
+
+
+@app.route('/protected')
+@flask_login.login_required
+def protected():
+    return 'Logged in as: ' + flask_login.current_user.id
+
+
+@app.route('/userinfo')
+@flask_login.login_required
+def userinfo():
+    return flask_login.current_user.id
+
+
+@app.route('/logout')
+def logout():
+    flask_login.logout_user()
+    # return 'Logged out'
+    return flask.redirect(flask.url_for('login'))
+
+
+@login_manager.unauthorized_handler
+def unauthorized_handler():
+    # return 'Unauthorized'
+    return flask.redirect(flask.url_for('login'))
+
+
+print('init login moudle')
+# end add login
 
 for http_path, handler, methods in handlers.get_endpoints():
     app.add_url_rule(http_path, handler.__name__, handler, methods=methods)
@@ -46,6 +137,7 @@ def health():
 
 # Serve the "get-artifact" route.
 @app.route(_add_static_prefix("/get-artifact"))
+@flask_login.login_required
 def serve_artifacts():
     return get_artifact_handler()
 
@@ -65,7 +157,10 @@ def serve_static_file(path):
 
 # Serve the index.html for the React App for all other routes.
 @app.route(_add_static_prefix("/"))
+@flask_login.login_required
 def serve():
+    print(flask_login.current_user)
+
     if os.path.exists(os.path.join(STATIC_DIR, "index.html")):
         return send_from_directory(STATIC_DIR, "index.html")
 

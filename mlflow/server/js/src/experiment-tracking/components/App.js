@@ -24,6 +24,8 @@ import ModelListPage from '../../model-registry/components/ModelListPage';
 import { ModelPage } from '../../model-registry/components/ModelPage';
 import CompareModelVersionsPage from '../../model-registry/components/CompareModelVersionsPage';
 
+import { User } from './User';
+
 const classNames = {
   activeNavLink: { borderBottom: '4px solid #43C9ED' },
 };
@@ -53,7 +55,7 @@ class App extends Component {
                     <span>Experiments</span>
                   </div>
                 </NavLink>
-                <NavLink
+                {/* <NavLink
                   strict
                   to={modelListPageRoute}
                   activeStyle={classNames.activeNavLink}
@@ -62,19 +64,25 @@ class App extends Component {
                   <div className='models'>
                     <span>Models</span>
                   </div>
-                </NavLink>
+                </NavLink> */}
               </div>
               <div className='header-links'>
-                <a href={'https://github.com/mlflow/mlflow'}>
+                <User source="http://127.0.0.1:5000/userinfo"/>
+                <a href={'http://127.0.0.1:5000/logout'}>
+                  <div className='github'>
+                    <span>Logout</span>
+                  </div>
+                </a>
+                {/* <a href={'https://github.com/mlflow/mlflow'}>
                   <div className='github'>
                     <span>GitHub</span>
                   </div>
-                </a>
-                <a href={'https://mlflow.org/docs/latest/index.html'}>
+                </a> */}
+                {/* <a href={'https://mlflow.org/docs/latest/index.html'}>
                   <div className='docs'>
                     <span>Docs</span>
                   </div>
-                </a>
+                </a> */}
               </div>
             </header>
           )}

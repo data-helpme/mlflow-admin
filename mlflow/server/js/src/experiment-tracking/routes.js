@@ -89,6 +89,8 @@ class Routes {
   }
 
   static compareRunPageRoute = '/compare-runs';
+
+  static userRoute = '/userinfo';
 }
 
 export default Routes;
