@@ -34,7 +34,7 @@ login_manager = flask_login.LoginManager()
 login_manager.init_app(app)
 
 # Our mock database.
-users = {'foo@bar.tld': {'password': '123456'}}
+users = {'admin': {'password': '123456'}, 'dev': {'password': '123456'}}
 
 class User(flask_login.UserMixin):
     pass

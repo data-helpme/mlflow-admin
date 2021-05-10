@@ -118,7 +118,7 @@ export class ExperimentPage extends Component {
     })
       .then(this.updateNextPageToken)
       .then(this.updateNumRunsFromLatestSearch)
-      .then(this.fetchModelVersionsForRuns)
+      // .then(this.fetchModelVersionsForRuns)
       .catch((e) => {
         Utils.logErrorAndNotifyUser(e);
         this.setState({ ...PAGINATION_DEFAULT_STATE });

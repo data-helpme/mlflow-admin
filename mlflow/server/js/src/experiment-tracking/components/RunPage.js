@@ -36,7 +36,7 @@ export class RunPageImpl extends Component {
     const { experimentId, runUuid } = this.props;
     this.props.getRunApi(runUuid, this.getRunRequestId);
     this.props.getExperimentApi(experimentId, this.getExperimentRequestId);
-    this.props.searchModelVersionsApi({ run_id: runUuid }, this.searchModelVersionsRequestId);
+    // this.props.searchModelVersionsApi({ run_id: runUuid }, this.searchModelVersionsRequestId);
   }
 
   handleSetRunTag = (tagName, value) => {

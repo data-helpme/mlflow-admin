@@ -73,6 +73,8 @@ from mlflow.utils.validation import _validate_batch_log_api_req
 from mlflow.utils.string_utils import is_string_type
 from mlflow.tracking.registry import UnsupportedModelRegistryStoreURIException
 
+import flask_login
+
 _logger = logging.getLogger(__name__)
 _tracking_store = None
 _model_registry_store = None
@@ -258,8 +260,12 @@ def _not_implemented():
 @catch_mlflow_exception
 def _create_experiment():
     request_message = _get_request_message(CreateExperiment())
+    
+    # add user id
+    user_id = flask_login.current_user.id
+    
     experiment_id = _get_tracking_store().create_experiment(
-        request_message.name, request_message.artifact_location
+        request_message.name, user_id, request_message.artifact_location
     )
     response_message = CreateExperiment.Response()
     response_message.experiment_id = experiment_id
@@ -445,7 +451,13 @@ def _get_run():
     request_message = _get_request_message(GetRun())
     response_message = GetRun.Response()
     run_id = request_message.run_id or request_message.run_uuid
-    response_message.run.MergeFrom(_get_tracking_store().get_run(run_id).to_proto())
+    run = _get_tracking_store().get_run(run_id)
+    user_id = flask_login.current_user.id
+    if user_id != 'admin' and run._info.user_id != user_id:
+        response = Response(mimetype="application/json")
+        response.set_data(message_to_json(response_message))
+        return response
+    response_message.run.MergeFrom(run.to_proto())
     response = Response(mimetype="application/json")
     response.set_data(message_to_json(response_message))
     return response
@@ -466,9 +478,12 @@ def _search_runs():
     run_entities = _get_tracking_store().search_runs(
         experiment_ids, filter_string, run_view_type, max_results, order_by, page_token
     )
-    response_message.runs.extend([r.to_proto() for r in run_entities])
     if run_entities.token:
         response_message.next_page_token = run_entities.token
+    user_id = flask_login.current_user.id
+    if user_id != 'admin':
+        run_entities = [e for e in run_entities if e._info.user_id == user_id]
+    response_message.runs.extend([r.to_proto() for r in run_entities])
     response = Response(mimetype="application/json")
     response.set_data(message_to_json(response_message))
     return response
@@ -484,6 +499,11 @@ def _list_artifacts():
         path = None
     run_id = request_message.run_id or request_message.run_uuid
     run = _get_tracking_store().get_run(run_id)
+    user_id = flask_login.current_user.id
+    if user_id != 'admin' and run._info.user_id != user_id:
+        response = Response(mimetype="application/json")
+        response.set_data(message_to_json(response_message))
+        return response
     artifact_entities = _get_artifact_repo(run).list_artifacts(path)
     response_message.files.extend([a.to_proto() for a in artifact_entities])
     response_message.root_uri = _get_artifact_repo(run).artifact_uri
@@ -508,6 +528,9 @@ def _get_metric_history():
 def _list_experiments():
     request_message = _get_request_message(ListExperiments())
     experiment_entities = _get_tracking_store().list_experiments(request_message.view_type)
+    user_id = flask_login.current_user.id
+    if user_id != 'admin':
+        experiment_entities = [e for e in experiment_entities if e.user_id == user_id]
     response_message = ListExperiments.Response()
     response_message.experiments.extend([e.to_proto() for e in experiment_entities])
     response = Response(mimetype="application/json")

@@ -13,10 +13,11 @@ class Experiment(_MLflowObject):
 
     DEFAULT_EXPERIMENT_NAME = "Default"
 
-    def __init__(self, experiment_id, name, artifact_location, lifecycle_stage, tags=None):
+    def __init__(self, experiment_id, name, artifact_location, lifecycle_stage, tags=None, user_id=None):
         super().__init__()
         self._experiment_id = experiment_id
         self._name = name
+        self._user_id = user_id if user_id is not None else 'default'
         self._artifact_location = artifact_location
         self._lifecycle_stage = lifecycle_stage
         self._tags = {tag.key: tag.value for tag in (tags or [])}
@@ -30,6 +31,11 @@ class Experiment(_MLflowObject):
     def name(self):
         """String name of the experiment."""
         return self._name
+
+    @property
+    def user_id(self):
+        """String user_id of the experiment."""
+        return self._user_id
 
     def _set_name(self, new_name):
         self._name = new_name
