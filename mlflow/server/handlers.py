@@ -63,7 +63,7 @@ from mlflow.protos.model_registry_pb2 import (
     SetModelVersionTag,
     DeleteModelVersionTag,
 )
-from mlflow.protos.databricks_pb2 import RESOURCE_DOES_NOT_EXIST, INVALID_PARAMETER_VALUE
+from mlflow.protos.databricks_pb2 import RESOURCE_DOES_NOT_EXIST, INVALID_PARAMETER_VALUE, PERMISSION_DENIED
 from mlflow.store.artifact.artifact_repository_registry import get_artifact_repository
 from mlflow.store.db.db_types import DATABASE_ENGINES
 from mlflow.tracking._model_registry.registry import ModelRegistryStoreRegistry
@@ -238,6 +238,42 @@ _TEXT_EXTENSIONS = [
     MLMODEL_FILE_NAME,
     MLPROJECT_FILE_NAME,
 ]
+
+
+def experiment_auth_check(experiment):
+    user_id = flask_login.current_user.id
+    if user_id == 'admin':
+        return
+    if experiment.user_id != user_id:
+        raise MlflowException(
+            "permission_denied you are not authorized to get experiment '%s'" % experiment.name(),
+            error_code=PERMISSION_DENIED,
+        )
+
+
+def experiment_auth_filter(experiments):
+    user_id = flask_login.current_user.id
+    if user_id == 'admin':
+        return experiments
+    return [e for e in experiments if e.user_id == user_id]
+
+
+def run_auth_check(run):
+    user_id = flask_login.current_user.id
+    if user_id == 'admin':
+        return
+    if run.info.user_id != user_id:
+        raise MlflowException(
+            "permission_denied you are not authorized to get run '%s'" % run.info.run_id,
+            error_code=PERMISSION_DENIED,
+        )
+
+
+def run_auth_filter(runs):
+    user_id = flask_login.current_user.id
+    if user_id == 'admin':
+        return runs
+    return [e for e in runs if e._info.user_id == user_id]
 
 
 @catch_mlflow_exception
@@ -452,11 +488,7 @@ def _get_run():
     response_message = GetRun.Response()
     run_id = request_message.run_id or request_message.run_uuid
     run = _get_tracking_store().get_run(run_id)
-    user_id = flask_login.current_user.id
-    if user_id != 'admin' and run._info.user_id != user_id:
-        response = Response(mimetype="application/json")
-        response.set_data(message_to_json(response_message))
-        return response
+    run_auth_check(run)
     response_message.run.MergeFrom(run.to_proto())
     response = Response(mimetype="application/json")
     response.set_data(message_to_json(response_message))
@@ -480,9 +512,7 @@ def _search_runs():
     )
     if run_entities.token:
         response_message.next_page_token = run_entities.token
-    user_id = flask_login.current_user.id
-    if user_id != 'admin':
-        run_entities = [e for e in run_entities if e._info.user_id == user_id]
+    run_entities = run_auth_filter(run_entities)
     response_message.runs.extend([r.to_proto() for r in run_entities])
     response = Response(mimetype="application/json")
     response.set_data(message_to_json(response_message))
@@ -499,11 +529,7 @@ def _list_artifacts():
         path = None
     run_id = request_message.run_id or request_message.run_uuid
     run = _get_tracking_store().get_run(run_id)
-    user_id = flask_login.current_user.id
-    if user_id != 'admin' and run._info.user_id != user_id:
-        response = Response(mimetype="application/json")
-        response.set_data(message_to_json(response_message))
-        return response
+    run_auth_check(run)
     artifact_entities = _get_artifact_repo(run).list_artifacts(path)
     response_message.files.extend([a.to_proto() for a in artifact_entities])
     response_message.root_uri = _get_artifact_repo(run).artifact_uri
@@ -528,9 +554,7 @@ def _get_metric_history():
 def _list_experiments():
     request_message = _get_request_message(ListExperiments())
     experiment_entities = _get_tracking_store().list_experiments(request_message.view_type)
-    user_id = flask_login.current_user.id
-    if user_id != 'admin':
-        experiment_entities = [e for e in experiment_entities if e.user_id == user_id]
+    experiment_entities = experiment_auth_filter(experiment_entities)
     response_message = ListExperiments.Response()
     response_message.experiments.extend([e.to_proto() for e in experiment_entities])
     response = Response(mimetype="application/json")
