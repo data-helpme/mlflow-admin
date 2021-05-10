@@ -246,7 +246,7 @@ def experiment_auth_check(experiment):
         return
     if experiment.user_id != user_id:
         raise MlflowException(
-            "permission_denied you are not authorized to get experiment '%s'" % experiment.name(),
+            "permission_denied you are not authorized to get experiment '%s'" % experiment.name,
             error_code=PERMISSION_DENIED,
         )
 
@@ -284,6 +284,7 @@ def get_artifact_handler():
     request_dict = parser.parse(query_string, normalized=True)
     run_id = request_dict.get("run_id") or request_dict.get("run_uuid")
     run = _get_tracking_store().get_run(run_id)
+    run_auth_check(run)
     return _send_artifact(_get_artifact_repo(run), request_dict["path"])
 
 
@@ -314,8 +315,9 @@ def _create_experiment():
 def _get_experiment():
     request_message = _get_request_message(GetExperiment())
     response_message = GetExperiment.Response()
-    experiment = _get_tracking_store().get_experiment(request_message.experiment_id).to_proto()
-    response_message.experiment.MergeFrom(experiment)
+    experiment = _get_tracking_store().get_experiment(request_message.experiment_id)
+    experiment_auth_check(experiment)
+    response_message.experiment.MergeFrom(experiment.to_proto())
     response = Response(mimetype="application/json")
     response.set_data(message_to_json(response_message))
     return response
@@ -331,6 +333,7 @@ def _get_experiment_by_name():
             "Could not find experiment with name '%s'" % request_message.experiment_name,
             error_code=RESOURCE_DOES_NOT_EXIST,
         )
+    experiment_auth_check(store_exp)
     experiment = store_exp.to_proto()
     response_message.experiment.MergeFrom(experiment)
     response = Response(mimetype="application/json")
@@ -341,6 +344,8 @@ def _get_experiment_by_name():
 @catch_mlflow_exception
 def _delete_experiment():
     request_message = _get_request_message(DeleteExperiment())
+    experiment = _get_tracking_store().get_experiment(request_message.experiment_id)
+    experiment_auth_check(experiment)
     _get_tracking_store().delete_experiment(request_message.experiment_id)
     response_message = DeleteExperiment.Response()
     response = Response(mimetype="application/json")
@@ -351,6 +356,8 @@ def _delete_experiment():
 @catch_mlflow_exception
 def _restore_experiment():
     request_message = _get_request_message(RestoreExperiment())
+    experiment = _get_tracking_store().get_experiment(request_message.experiment_id)
+    experiment_auth_check(experiment)
     _get_tracking_store().restore_experiment(request_message.experiment_id)
     response_message = RestoreExperiment.Response()
     response = Response(mimetype="application/json")
@@ -362,6 +369,8 @@ def _restore_experiment():
 def _update_experiment():
     request_message = _get_request_message(UpdateExperiment())
     if request_message.new_name:
+        experiment = _get_tracking_store().get_experiment(request_message.experiment_id)
+        experiment_auth_check(experiment)
         _get_tracking_store().rename_experiment(
             request_message.experiment_id, request_message.new_name
         )
@@ -374,7 +383,7 @@ def _update_experiment():
 @catch_mlflow_exception
 def _create_run():
     request_message = _get_request_message(CreateRun())
-
+    user_id = flask_login.current_user.id
     tags = [RunTag(tag.key, tag.value) for tag in request_message.tags]
     run = _get_tracking_store().create_run(
         experiment_id=request_message.experiment_id,
@@ -394,6 +403,8 @@ def _create_run():
 def _update_run():
     request_message = _get_request_message(UpdateRun())
     run_id = request_message.run_id or request_message.run_uuid
+    run = _get_tracking_store().get_run(run_id)
+    run_auth_check(run)
     updated_info = _get_tracking_store().update_run_info(
         run_id, request_message.status, request_message.end_time
     )
@@ -406,6 +417,8 @@ def _update_run():
 @catch_mlflow_exception
 def _delete_run():
     request_message = _get_request_message(DeleteRun())
+    run = _get_tracking_store().get_run(request_message.run_id)
+    run_auth_check(run)
     _get_tracking_store().delete_run(request_message.run_id)
     response_message = DeleteRun.Response()
     response = Response(mimetype="application/json")
@@ -416,6 +429,8 @@ def _delete_run():
 @catch_mlflow_exception
 def _restore_run():
     request_message = _get_request_message(RestoreRun())
+    run = _get_tracking_store().get_run(request_message.run_id)
+    run_auth_check(run)
     _get_tracking_store().restore_run(request_message.run_id)
     response_message = RestoreRun.Response()
     response = Response(mimetype="application/json")
@@ -430,6 +445,8 @@ def _log_metric():
         request_message.key, request_message.value, request_message.timestamp, request_message.step
     )
     run_id = request_message.run_id or request_message.run_uuid
+    run = _get_tracking_store().get_run(run_id)
+    run_auth_check(run)
     _get_tracking_store().log_metric(run_id, metric)
     response_message = LogMetric.Response()
     response = Response(mimetype="application/json")
@@ -442,6 +459,8 @@ def _log_param():
     request_message = _get_request_message(LogParam())
     param = Param(request_message.key, request_message.value)
     run_id = request_message.run_id or request_message.run_uuid
+    run = _get_tracking_store().get_run(run_id)
+    run_auth_check(run)
     _get_tracking_store().log_param(run_id, param)
     response_message = LogParam.Response()
     response = Response(mimetype="application/json")
@@ -465,6 +484,8 @@ def _set_tag():
     request_message = _get_request_message(SetTag())
     tag = RunTag(request_message.key, request_message.value)
     run_id = request_message.run_id or request_message.run_uuid
+    run = _get_tracking_store().get_run(run_id)
+    run_auth_check(run)
     _get_tracking_store().set_tag(run_id, tag)
     response_message = SetTag.Response()
     response = Response(mimetype="application/json")
@@ -475,6 +496,8 @@ def _set_tag():
 @catch_mlflow_exception
 def _delete_tag():
     request_message = _get_request_message(DeleteTag())
+    run = _get_tracking_store().get_run(request_message.run_id)
+    run_auth_check(run)
     _get_tracking_store().delete_tag(request_message.run_id, request_message.key)
     response_message = DeleteTag.Response()
     response = Response(mimetype="application/json")
@@ -543,6 +566,8 @@ def _get_metric_history():
     request_message = _get_request_message(GetMetricHistory())
     response_message = GetMetricHistory.Response()
     run_id = request_message.run_id or request_message.run_uuid
+    run = _get_tracking_store().get_run(request_message.run_id)
+    run_auth_check(run)
     metric_entites = _get_tracking_store().get_metric_history(run_id, request_message.metric_key)
     response_message.metrics.extend([m.to_proto() for m in metric_entites])
     response = Response(mimetype="application/json")
@@ -574,6 +599,8 @@ def _log_batch():
     metrics = [Metric.from_proto(proto_metric) for proto_metric in request_message.metrics]
     params = [Param.from_proto(proto_param) for proto_param in request_message.params]
     tags = [RunTag.from_proto(proto_tag) for proto_tag in request_message.tags]
+    run = _get_tracking_store().get_run(request_message.run_id)
+    run_auth_check(run)
     _get_tracking_store().log_batch(
         run_id=request_message.run_id, metrics=metrics, params=params, tags=tags
     )
