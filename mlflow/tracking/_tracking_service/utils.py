@@ -16,6 +16,7 @@ _TRACKING_URI_ENV_VAR = "MLFLOW_TRACKING_URI"
 # Extra environment variables which take precedence for setting the basic/bearer
 # auth on http requests.
 _TRACKING_USERNAME_ENV_VAR = "MLFLOW_TRACKING_USERNAME"
+_TRACKING_EMAIL_ENV_VAR = "MLFLOW_TRACKING_EMAIL"
 _TRACKING_PASSWORD_ENV_VAR = "MLFLOW_TRACKING_PASSWORD"
 _TRACKING_TOKEN_ENV_VAR = "MLFLOW_TRACKING_TOKEN"
 
@@ -117,20 +118,24 @@ def _get_sqlalchemy_store(store_uri, artifact_uri):
     return SqlAlchemyStore(store_uri, artifact_uri)
 
 
-def _get_default_host_creds(store_uri):
+def _get_default_host_creds(store_uri, **_):
+    username = _['username'] if 'username' in _ else os.environ.get(_TRACKING_USERNAME_ENV_VAR)
+    password = _['password'] if 'password' in _ else os.environ.get(_TRACKING_PASSWORD_ENV_VAR)
+    email = _['email'] if 'email' in _ else os.environ.get(_TRACKING_EMAIL_ENV_VAR)
     return rest_utils.MlflowHostCreds(
         host=store_uri,
-        username=os.environ.get(_TRACKING_USERNAME_ENV_VAR),
-        password=os.environ.get(_TRACKING_PASSWORD_ENV_VAR),
+        username=username,
+        password=password,
         token=os.environ.get(_TRACKING_TOKEN_ENV_VAR),
         ignore_tls_verification=os.environ.get(_TRACKING_INSECURE_TLS_ENV_VAR) == "true",
         client_cert_path=os.environ.get(_TRACKING_CLIENT_CERT_PATH_ENV_VAR),
         server_cert_path=os.environ.get(_TRACKING_SERVER_CERT_PATH_ENV_VAR),
+        email=email,
     )
 
 
 def _get_rest_store(store_uri, **_):
-    return RestStore(partial(_get_default_host_creds, store_uri))
+    return RestStore(partial(_get_default_host_creds, store_uri, **_))
 
 
 def _get_databricks_rest_store(store_uri, **_):
@@ -151,8 +156,8 @@ for scheme in DATABASE_ENGINES:
 _tracking_store_registry.register_entrypoints()
 
 
-def _get_store(store_uri=None, artifact_uri=None):
-    return _tracking_store_registry.get_store(store_uri, artifact_uri)
+def _get_store(store_uri=None, artifact_uri=None, **kwargs):
+    return _tracking_store_registry.get_store(store_uri, artifact_uri, **kwargs)
 
 
 # TODO(sueann): move to a projects utils module

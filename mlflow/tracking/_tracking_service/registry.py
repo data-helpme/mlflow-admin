@@ -19,7 +19,7 @@ class TrackingStoreRegistry(StoreRegistry):
     def __init__(self):
         super().__init__("mlflow.tracking_store")
 
-    def get_store(self, store_uri=None, artifact_uri=None):
+    def get_store(self, store_uri=None, artifact_uri=None, **kwargs):
         """Get a store from the registry based on the scheme of store_uri
 
         :param store_uri: The store URI. If None, it will be inferred from the environment. This URI
@@ -35,4 +35,4 @@ class TrackingStoreRegistry(StoreRegistry):
 
         store_uri = utils._resolve_tracking_uri(store_uri)
         builder = self.get_store_builder(store_uri)
-        return builder(store_uri=store_uri, artifact_uri=artifact_uri)
+        return builder(store_uri=store_uri, artifact_uri=artifact_uri, **kwargs)

@@ -58,6 +58,13 @@ def http_request(
     if host_creds.client_cert_path is not None:
         kwargs["cert"] = host_creds.client_cert_path
 
+    if host_creds.email is not None:
+        login_url = host_creds.host + '/login'
+        response = requests.request("POST", login_url, data={
+            'email': host_creds.email, 'password': host_creds.password
+        })
+        kwargs["cookies"] = response.cookies
+
     def request_with_ratelimit_retries(max_rate_limit_interval, **kwargs):
         response = requests.request(**kwargs)
         time_left = max_rate_limit_interval
@@ -264,6 +271,7 @@ class MlflowHostCreds(object):
         ignore_tls_verification=False,
         client_cert_path=None,
         server_cert_path=None,
+        email=None,
     ):
         if not host:
             raise MlflowException(
@@ -288,3 +296,4 @@ class MlflowHostCreds(object):
         self.ignore_tls_verification = ignore_tls_verification
         self.client_cert_path = client_cert_path
         self.server_cert_path = server_cert_path
+        self.email = email

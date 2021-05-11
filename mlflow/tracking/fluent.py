@@ -50,7 +50,7 @@ NUM_RUNS_PER_PAGE_PANDAS = 10000
 _logger = logging.getLogger(__name__)
 
 
-def set_experiment(experiment_name: str) -> None:
+def set_experiment(client: MlflowClient, experiment_name: str) -> None:
     """
     Set given experiment as active experiment. If experiment does not exist, create an experiment
     with provided name.
@@ -80,7 +80,7 @@ def set_experiment(experiment_name: str) -> None:
         Tags: {}
         Lifecycle_stage: active
     """
-    client = MlflowClient()
+    # client = MlflowClient()
     experiment = client.get_experiment_by_name(experiment_name)
     exp_id = experiment.experiment_id if experiment else None
     if exp_id is None:  # id can be 0
@@ -112,6 +112,7 @@ class ActiveRun(Run):  # pylint: disable=W0223
 
 
 def start_run(
+    client: MlflowClient,
     run_id: str = None,
     experiment_id: Optional[str] = None,
     run_name: Optional[str] = None,
@@ -199,7 +200,8 @@ def start_run(
         existing_run_id = None
     if existing_run_id:
         _validate_run_id(existing_run_id)
-        active_run_obj = MlflowClient().get_run(existing_run_id)
+        # active_run_obj = MlflowClient().get_run(existing_run_id)
+        active_run_obj = client.get_run(existing_run_id)
         # Check to see if experiment_id from environment matches experiment_id from set_experiment()
         if (
             _active_experiment_id is not None
@@ -223,7 +225,8 @@ def start_run(
         _get_store().update_run_info(
             existing_run_id, run_status=RunStatus.RUNNING, end_time=end_time
         )
-        active_run_obj = MlflowClient().get_run(existing_run_id)
+        # active_run_obj = MlflowClient().get_run(existing_run_id)
+        active_run_obj = client.get_run(existing_run_id)
     else:
         if len(_active_run_stack) > 0:
             parent_run_id = _active_run_stack[-1].info.run_id
@@ -240,7 +243,8 @@ def start_run(
 
         tags = context_registry.resolve_tags(user_specified_tags)
 
-        active_run_obj = MlflowClient().create_run(experiment_id=exp_id_for_run, tags=tags)
+        # active_run_obj = MlflowClient().create_run(experiment_id=exp_id_for_run, tags=tags)
+        active_run_obj = client.create_run(experiment_id=exp_id_for_run, tags=tags)
 
     _active_run_stack.append(ActiveRun(active_run_obj))
     return _active_run_stack[-1]
@@ -346,7 +350,7 @@ def get_run(run_id: str) -> Run:
     return MlflowClient().get_run(run_id)
 
 
-def log_param(key: str, value: Any) -> None:
+def log_param(client: MlflowClient, key: str, value: Any) -> None:
     """
     Log a parameter under the current run. If no run is active, this method will create
     a new active run.
@@ -363,7 +367,8 @@ def log_param(key: str, value: Any) -> None:
             mlflow.log_param("learning_rate", 0.01)
     """
     run_id = _get_or_start_run().info.run_id
-    MlflowClient().log_param(run_id, key, value)
+    # MlflowClient().log_param(run_id, key, value)
+    client.log_param(run_id, key, value)
 
 
 def set_tag(key: str, value: Any) -> None:
@@ -411,7 +416,7 @@ def delete_tag(key: str) -> None:
     MlflowClient().delete_tag(run_id, key)
 
 
-def log_metric(key: str, value: float, step: Optional[int] = None) -> None:
+def log_metric(client: MlflowClient, key: str, value: float, step: Optional[int] = None) -> None:
     """
     Log a metric under the current run. If no run is active, this method will create
     a new active run.
@@ -431,7 +436,8 @@ def log_metric(key: str, value: float, step: Optional[int] = None) -> None:
             mlflow.log_metric("mse", 2500.00)
     """
     run_id = _get_or_start_run().info.run_id
-    MlflowClient().log_metric(run_id, key, value, int(time.time() * 1000), step or 0)
+    # MlflowClient().log_metric(run_id, key, value, int(time.time() * 1000), step or 0)
+    client.log_metric(run_id, key, value, int(time.time() * 1000), step or 0)
 
 
 def log_metrics(metrics: Dict[str, float], step: Optional[int] = None) -> None:

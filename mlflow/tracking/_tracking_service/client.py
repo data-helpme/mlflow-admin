@@ -29,12 +29,12 @@ class TrackingServiceClient(object):
     Client of an MLflow Tracking Server that creates and manages experiments and runs.
     """
 
-    def __init__(self, tracking_uri):
+    def __init__(self, tracking_uri, **kwargs):
         """
         :param tracking_uri: Address of local or remote tracking server.
         """
         self.tracking_uri = tracking_uri
-        self.store = utils._get_store(self.tracking_uri)
+        self.store = utils._get_store(self.tracking_uri, **kwargs)
 
     def get_run(self, run_id):
         """
