@@ -99,15 +99,16 @@ def set_experiment(client: MlflowClient, experiment_name: str) -> None:
 class ActiveRun(Run):  # pylint: disable=W0223
     """Wrapper around :py:class:`mlflow.entities.Run` to enable using Python ``with`` syntax."""
 
-    def __init__(self, run):
+    def __init__(self, client, run):
         Run.__init__(self, run.info, run.data)
+        self._client = client
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         status = RunStatus.FINISHED if exc_type is None else RunStatus.FAILED
-        end_run(RunStatus.to_string(status))
+        end_run(self._client, RunStatus.to_string(status))
         return exc_type is None
 
 
@@ -246,11 +247,11 @@ def start_run(
         # active_run_obj = MlflowClient().create_run(experiment_id=exp_id_for_run, tags=tags)
         active_run_obj = client.create_run(experiment_id=exp_id_for_run, tags=tags)
 
-    _active_run_stack.append(ActiveRun(active_run_obj))
+    _active_run_stack.append(ActiveRun(client, active_run_obj))
     return _active_run_stack[-1]
 
 
-def end_run(status: str = RunStatus.to_string(RunStatus.FINISHED)) -> None:
+def end_run(client: MlflowClient = None, status: str = RunStatus.to_string(RunStatus.FINISHED)) -> None:
     """End an active MLflow run (if there is one).
 
     .. code-block:: python
@@ -280,12 +281,14 @@ def end_run(status: str = RunStatus.to_string(RunStatus.FINISHED)) -> None:
         --
         Active run: None
     """
+    if client is None:
+        return
     global _active_run_stack
     if len(_active_run_stack) > 0:
         # Clear out the global existing run environment variable as well.
         env.unset_variable(_RUN_ID_ENV_VAR)
         run = _active_run_stack.pop()
-        MlflowClient().set_terminated(run.info.run_id, status)
+        client.set_terminated(run.info.run_id, status)
 
 
 atexit.register(end_run)
