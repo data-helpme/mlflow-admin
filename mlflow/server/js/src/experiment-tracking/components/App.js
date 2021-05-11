@@ -67,8 +67,8 @@ class App extends Component {
                 </NavLink> */}
               </div>
               <div className='header-links'>
-                <User source="http://127.0.0.1:5000/userinfo"/>
-                <a href={'http://127.0.0.1:5000/logout'}>
+                <User source="/userinfo"/>
+                <a href={'/logout'}>
                   <div className='github'>
                     <span>Logout</span>
                   </div>
